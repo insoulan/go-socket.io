@@ -7,6 +7,6 @@ require (
 	github.com/gofrs/uuid v4.0.0+incompatible
 	github.com/gomodule/redigo v1.8.4
 	github.com/gorilla/websocket v1.4.2
-	github.com/stretchr/testify v1.5.1
-	gopkg.in/yaml.v2 v2.2.4 // indirect
+	github.com/stretchr/testify v1.6.1
+	github.com/vmihailenco/msgpack/v5 v5.3.5
 )

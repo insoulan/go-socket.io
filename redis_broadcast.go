@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/googollee/go-socket.io/parser"
+	"github.com/vmihailenco/msgpack/v5"
 	"strings"
 	"sync"
 
@@ -307,7 +309,7 @@ func (bc *redisBroadcast) onMessage(channel string, msg []byte) error {
 	}
 
 	var bcMessage map[string][]interface{}
-	err := json.Unmarshal(msg, &bcMessage)
+	err := msgpack.Unmarshal(msg, &bcMessage)
 	if err != nil {
 		return errors.New("invalid broadcast message")
 	}
@@ -323,6 +325,16 @@ func (bc *redisBroadcast) onMessage(channel string, msg []byte) error {
 	event, ok := opts[1].(string)
 	if !ok {
 		return errors.New("invalid event")
+	}
+
+	for i := range args {
+		if arg, ok := args[i].(map[string]interface{}); ok {
+			if buffer, ok := arg["Buffer"]; ok {
+				if data, ok := buffer.([]uint8); ok {
+					args[i] = &parser.Buffer{Data: data}
+				}
+			}
+		}
 	}
 
 	if room != "" {
@@ -487,12 +499,12 @@ func (bc *redisBroadcast) publishMessage(room string, event string, args ...inte
 		"opts": opts,
 		"args": args,
 	}
-	bcMessageJSON, err := json.Marshal(bcMessage)
+	bcMessagePack, err := msgpack.Marshal(bcMessage)
 	if err != nil {
 		return
 	}
 
-	_, err = bc.pub.Conn.Do("PUBLISH", bc.key, bcMessageJSON)
+	_, err = bc.pub.Conn.Do("PUBLISH", bc.key, bcMessagePack)
 	if err != nil {
 		return
 	}

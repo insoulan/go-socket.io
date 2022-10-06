@@ -12,7 +12,7 @@ type Buffer struct {
 	num      uint64
 	isBinary bool
 
-	Data []byte
+	Data []byte `msgpack:"Buffer"`
 }
 
 type BufferData struct {
