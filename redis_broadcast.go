@@ -28,7 +28,8 @@ type redisBroadcast struct {
 
 	rooms map[string]map[string]Conn
 
-	lock sync.RWMutex
+	lock   sync.RWMutex
+	doLock sync.Mutex
 }
 
 // request types
@@ -140,7 +141,7 @@ func (bc *redisBroadcast) AllRooms() []string {
 	req.done = make(chan bool, 1)
 
 	bc.requests[req.RequestID] = &req
-	_, err := bc.pub.Conn.Do("PUBLISH", bc.reqChannel, reqJSON)
+	_, err := bc.do("PUBLISH", bc.reqChannel, reqJSON)
 	if err != nil {
 		return []string{} // if error occurred,return empty
 	}
@@ -271,7 +272,7 @@ func (bc *redisBroadcast) Len(room string) int {
 	req.done = make(chan bool, 1)
 
 	bc.requests[req.RequestID] = &req
-	_, err = bc.pub.Conn.Do("PUBLISH", bc.reqChannel, reqJSON)
+	_, err = bc.do("PUBLISH", bc.reqChannel, reqJSON)
 	if err != nil {
 		return -1
 	}
@@ -348,7 +349,7 @@ func (bc *redisBroadcast) onMessage(channel string, msg []byte) error {
 
 // Get the number of subscribers of a channel.
 func (bc *redisBroadcast) getNumSub(channel string) (int, error) {
-	rs, err := bc.pub.Conn.Do("PUBSUB", "NUMSUB", channel)
+	rs, err := bc.do("PUBSUB", "NUMSUB", channel)
 	if err != nil {
 		return 0, err
 	}
@@ -402,7 +403,7 @@ func (bc *redisBroadcast) publish(channel string, msg interface{}) {
 		return
 	}
 
-	_, err = bc.pub.Conn.Do("PUBLISH", channel, resJSON)
+	_, err = bc.do("PUBLISH", channel, resJSON)
 	if err != nil {
 		return
 	}
@@ -504,7 +505,7 @@ func (bc *redisBroadcast) publishMessage(room string, event string, args ...inte
 		return
 	}
 
-	_, err = bc.pub.Conn.Do("PUBLISH", bc.key, bcMessagePack)
+	_, err = bc.do("PUBLISH", bc.key, bcMessagePack)
 	if err != nil {
 		return
 	}
@@ -571,4 +572,11 @@ func (bc *redisBroadcast) dispatch() {
 			return
 		}
 	}
+}
+
+func (bc *redisBroadcast) do(commandName string, args ...interface{}) (interface{}, error) {
+	bc.doLock.Lock()
+	defer bc.doLock.Unlock()
+
+	return bc.pub.Conn.Do(commandName, args...)
 }
